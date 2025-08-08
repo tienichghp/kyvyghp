@@ -1,43 +1,41 @@
-name: Build APK with Buildozer
+name: Android CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  build-apk:
-    runs-on: ubuntu-22.04
-
+  build:
+    name: Build debug apk
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.5.0
         with:
-          python-version: 3.10
+          access_token: ${{ github.token }}
 
-      - name: Upgrade pip and install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt || echo "No requirements.txt found, skipping."
-
-      - name: Install Buildozer and dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y python3-pip python3-setuptools git zip unzip openjdk-17-jdk
-          pip install --upgrade buildozer
-
-      - name: Build APK with Buildozer
-        run: |
-          buildozer android debug
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v2
+    
+      - name: set up JDK 11
+        uses: actions/setup-java@v2
         with:
-          name: app-debug-apk
-          path: bin/*.apk
+          java-version: '11'
+          distribution: 'adopt'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug apk
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: assembleDebug
+          distributions-cache-enabled: true
+          dependencies-cache-enabled: true
+          configuration-cache-enabled: true
+
+      - name: Upload debug apk
+        uses: actions/upload-artifact@v2
+        with:
+          name: apk-debug
+          path: app/build/outputs/apk/debug
