@@ -46,8 +46,7 @@ jobs:
           mv cmdline-tools latest
 
       - name: Accept SDK licenses
-        run: |
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+        run: yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Install Android SDK packages
         run: |
@@ -59,8 +58,7 @@ jobs:
           pip install buildozer
 
       - name: Build APK
-        run: |
-          buildozer android debug
+        run: buildozer android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
