@@ -1,50 +1,29 @@
-name: Build APK TOOL REG FB-TIKTOK GHP
+name: Build Python Project
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout source code
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Setup Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies & Buildozer
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-8-jdk unzip wget build-essential python3-pip git
-        pip install --upgrade pip
-        pip install buildozer
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Setup Android SDK and NDK
-      run: |
-        mkdir -p $HOME/android-sdk
-        cd $HOME/android-sdk
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip cmdline-tools.zip
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools/* cmdline-tools/latest/
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-31" "build-tools;31.0.0" "ndk;23.1.7779620"
-
-    - name: Build APK with Buildozer
-      env:
-        ANDROIDSDK: ${{ env.HOME }}/android-sdk
-        ANDROIDNDK: ${{ env.HOME }}/android-sdk/ndk/23.1.7779620
-        ANDROIDSDK_ROOT: ${{ env.HOME }}/android-sdk
-      run: |
-        buildozer android debug
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: TOOL_REG_FB_TIKTOK_GHP_apk
-        path: bin/*.apk
+      - name: Run tests (if có)
+        run: |
+          pytest
