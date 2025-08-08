@@ -9,32 +9,63 @@ on:
       - main
 
 jobs:
-  build:
+  build_apk:
     runs-on: ubuntu-22.04
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Setup Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Upgrade pip
-      run: python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pip \
+            python3-setuptools \
+            python3-wheel \
+            build-essential \
+            git \
+            openjdk-11-jdk \
+            zip \
+            unzip \
+            libssl-dev \
+            libffi-dev \
+            libsqlite3-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libbz2-dev \
+            libreadline-dev \
+            libffi-dev \
+            liblzma-dev \
+            zlib1g-dev \
+            libgdk-pixbuf2.0-dev \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev \
+            libjpeg-dev \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            libswscale-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libtiff-dev \
+            libpulse-dev \
+            libfreetype6-dev
+          python3 -m pip install --upgrade pip
+          pip install --upgrade buildozer
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade buildozer
+      - name: Build APK with Buildozer
+        run: |
+          buildozer android debug
 
-    - name: Build APK
-      run: |
-        buildozer android debug
-      working-directory: ./  # thư mục chứa buildozer.spec
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: apk
-        path: ./bin/*.apk
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug-apk
+          path: bin/*.apk
