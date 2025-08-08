@@ -1,86 +1,80 @@
-name: Generated APK AAB (Upload - Create Artifact To Github Action)
-
-env:
-  # The name of the main module repository
-  main_project_module: app
-
-  # The name of the Play Store
-  playstore_name: Frogobox ID
+name: Build Android
 
 on:
-
+  workflow_call:
   push:
     branches:
-      - 'release/**'
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+      - main
+    paths:
+      - '.github/workflows/build-android.yml'
+      - 'android/**'
+      - 'lib/**'
+      - '*.yaml'
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-
-      # Set Current Date As Env Variable
-      - name: Set current date as env variable
-        run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      # Set Repository Name As Env Variable
-      - name: Set repository name as env variable
-        run: echo "repository_name=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
-
-      - name: Set Up JDK
-        uses: actions/setup-java@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          distribution: 'zulu' # See 'Supported distributions' for available options
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
           java-version: '17'
-          cache: 'gradle'
+          distribution: 'adopt'
 
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
 
-      # Run Tests Build
-      - name: Run gradle tests
-        run: ./gradlew test
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
 
-      # Run Build Project
-      - name: Build gradle project
-        run: ./gradlew build
+      - name: Decode Keystore File
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+        run: echo "$KEYSTORE" | base64 --decode > android/app/key.jks
 
-      # Create APK Debug
-      - name: Build apk debug project (APK) - ${{ env.main_project_module }} module
-        run: ./gradlew assembleDebug
+      - name: Create key.properties
+        run: |
+          echo "storeFile=key.jks" > android/key.properties
+          echo "storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}" >> android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/key.properties
+          echo "releasePassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
+          echo "releaseAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
 
-      # Create APK Release
-      - name: Build apk release project (APK) - ${{ env.main_project_module }} module
-        run: ./gradlew assemble
+      - name: Setup Flutter
+        run: |
+          flutter config --no-analytics
+          flutter pub get
 
-      # Create Bundle AAB Release
-      # Noted for main module build [main_project_module]:bundleRelease
-      - name: Build app bundle release (AAB) - ${{ env.main_project_module }} module
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
+      - name: Build APK
+        run: |
+          flutter build apk -v
 
-      # Upload Artifact Build
-      # Noted For Output [main_project_module]/build/outputs/apk/debug/
-      - name: Upload APK Debug - ${{ env.repository_name }}
+      - name: Rename APK
+        run: |
+          mkdir -p release
+          mv build/app/outputs/flutter-apk/app-release.apk release/maid-android-universal.apk
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/maid-android-arm64-v8a.apk
+          mv build/app/outputs/flutter-apk/app-x86_64-release.apk release/maid-android-x86_64.apk
+
+      - name: Build appbundle
+        run: |
+          flutter build appbundle --dart-define=WORKSAFE=true
+
+      - name: Rename AAB
+        run: mv build/app/outputs/bundle/release/app-release.aab release/maid-android-bundle.aab
+
+      - name: Upload Android Builds
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK(s) debug generated
-          path: ${{ env.main_project_module }}/build/outputs/apk/debug/
-
-      # Noted For Output [main_project_module]/build/outputs/apk/release/
-      - name: Upload APK Release - ${{ env.repository_name }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK(s) release generated
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/
-
-      # Noted For Output [main_project_module]/build/outputs/bundle/release/
-      - name: Upload AAB (App Bundle) Release - ${{ env.repository_name }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - App bundle(s) AAB release generated
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/
+          name: maid-android
+          path: release
